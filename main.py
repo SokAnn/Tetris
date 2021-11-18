@@ -3,8 +3,9 @@ GAME TETRIS
 """
 
 import pygame
-from random import choice, random
+from random import choice
 from copy import deepcopy
+import time
 
 # globals
 W, H = 10, 20  # field size: 10 * 20
@@ -14,7 +15,8 @@ grid = [pygame.Rect(x * square, y * square, square, square) for x in range(W) fo
 frame_grid = [pygame.Rect(x * square, y * square, square, square) for x in range(W + 2) for y in range(H + 2)]
 next_grid = [pygame.Rect(i * square, j * square, square, square) for i in range(4) for j in range(4)]
 field = [[0 for i in range(W)] for j in range(H)]
-fps = 100  # frame rate
+fps = 80  # frame rate
+
 # tetrominoes
 I = [(-1, 0), (-2, 0), (0, 0), (1, 0)]
 J = [(0, 0), (-1, -1), (-1, 0), (1, 0)]
@@ -27,8 +29,10 @@ tetrominoes_pos = [I, J, L, O, S, T, Z]
 tetrominoes = [[pygame.Rect(x + W // 2, y + 1, 1, 1) for x, y in t_pos] for t_pos in tetrominoes_pos]
 tetromino_rect = pygame.Rect(0, 0, square - 2, square - 2)
 tetro_color = [(0, 255, 255), (0, 0, 255), (255, 69, 0), (255, 255, 0), (0, 255, 0), (255, 0, 255), (255, 0, 0)]
+
 # for animation
 anim_count, anim_speed, anim_limit = 0, 100, 3000
+
 # fonts
 pygame.font.init()
 title_f = pygame.font.Font('GorgeousPixel.ttf', 50)
@@ -38,12 +42,7 @@ title = (title_f.render('T', True, (0, 255, 255)), title_f.render('E', True, (0,
 # info & fonts
 score, score_lines = 0, 0
 scores = {0: 0, 1: 100, 2: 300, 3: 700, 4: 1500}
-title_score = pygame.font.Font('GorgeousPixel.ttf', 25)
-t_s = title_score.render('Score: ', True, (128, 128, 128))
-title_lines = pygame.font.Font('GorgeousPixel.ttf', 25)
-t_l = title_lines.render('Lines: ', True, (128, 128, 128))
-title_record = pygame.font.Font('GorgeousPixel.ttf', 25)
-t_r = title_record.render('Record: ', True, (255, 255, 255))
+title_results = pygame.font.Font('GorgeousPixel.ttf', 25)
 
 
 def check_borders():
@@ -52,6 +51,22 @@ def check_borders():
     elif tetromino[i].y > H - 1 or field[tetromino[i].y][tetromino[i].x]:
         return False
     return True
+
+
+def read_write_file(read=True):
+    # read
+    if read:
+        try:
+            with open('records', 'r') as f:
+                return f.readline()
+        except FileNotFoundError:
+            with open('records', 'w') as f:
+                f.write('0')
+                return '0'
+    # write
+    if not read:
+        with open('records', 'w') as f:
+            f.write(str(record))
 
 
 if __name__ == "__main__":
@@ -64,29 +79,29 @@ if __name__ == "__main__":
     screen.set_alpha(255)
     next_surf = pygame.Surface((4 * square, 4 * square))
     next_surf.set_alpha(255)
-
-    # screen = pygame.display.set_mode(screen_resolution)
     pygame.display.update()
     pygame.display.set_caption("TETRIS")
     clock = pygame.time.Clock()
 
-    # main loop
     running = True
     tetromino = deepcopy(choice(tetrominoes))
     color = tetro_color[tetrominoes.index(tetromino)]
     next_tetromino = deepcopy(choice(tetrominoes))
     next_color = tetro_color[tetrominoes.index(next_tetromino)]
+    timer = time.time()  # timer
+
+    # main loop
     while running:
+        record = read_write_file()  # read record from file
         main_surf.fill((0, 0, 0))
-        [main_surf.blit(title[i_title], (50 + i_title * 30, 10)) for i_title in range(len(title))]
+        [main_surf.blit(title[i_title], (50 + i_title * 30, 30)) for i_title in range(len(title))]
         main_surf.blit(frame, (280, 10))
         main_surf.blit(screen, (310, 40))
-        main_surf.blit(next_surf, (80, 105))
-
-        clock.tick(fps)  # loop speed
+        main_surf.blit(next_surf, (80, 135))
         dx = 0
         rotate = False
-        # event
+
+        # events
         for event in pygame.event.get():
             # check event (closing window)
             if event.type == pygame.QUIT:
@@ -178,14 +193,31 @@ if __name__ == "__main__":
             tetromino_rect.x = next_tetromino[i].x * square - 10
             tetromino_rect.y = next_tetromino[i].y * square + 135
             pygame.draw.rect(main_surf, next_color, tetromino_rect)
-
-        main_surf.blit(t_s, (50, 260))
-        main_surf.blit(t_l, (50, 300))
-        main_surf.blit(title_score.render(str(score), True, (128, 128, 128)), (170, 260))
-        main_surf.blit(title_lines.render(str(score_lines), True, (128, 128, 128)), (170, 300))
-        main_surf.blit(t_r, (50, 340))
-
+        # draw info
+        main_surf.blit(title_results.render('Score: ', True, (128, 128, 128)), (50, 320))
+        main_surf.blit(title_results.render(str(score), True, (128, 128, 128)), (170, 320))
+        main_surf.blit(title_results.render('Lines: ', True, (128, 128, 128)), (50, 350))
+        main_surf.blit(title_results.render(str(score_lines), True, (128, 128, 128)), (170, 350))
+        main_surf.blit(title_results.render('Time: ', True, (128, 128, 128)), (50, 380))
+        main_surf.blit(title_results.render(str(int(time.time() - timer)), True, (128, 128, 128)), (170, 380))
+        main_surf.blit(title_results.render('Record: ', True, (255, 255, 255)), (50, 440))
+        main_surf.blit(title_results.render(str(record), True, (255, 255, 255)), (170, 440))
+        # game over
+        for i in range(W):
+            if field[0][i]:
+                if score > int(record):
+                    record = score
+                    read_write_file(read=False)  # write record to file
+                field = [[0 for i in range(W)] for i in range(H)]
+                anim_count, anim_speed, anim_limit = 0, 100, 3000
+                score = 0
+                score_lines = 0
+                timer = time.time()
+                for i_rect in grid:
+                    pygame.draw.rect(screen, choice(tetro_color), i_rect)
+                    main_surf.blit(screen, (310, 40))
+                    pygame.display.flip()
+                    clock.tick(fps + 150)
         pygame.display.flip()  # flip our screen
         clock.tick(fps)  # check fps
-
     pygame.quit()
